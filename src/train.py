@@ -12,13 +12,14 @@ from sklearn.metrics import r2_score, mean_absolute_error
 import logging
 import datetime
 
+
 def extract_num(x):
     if pd.isnull(x):
         return None
     m = re.search(r'(\d+(?:\.\d+)?)', str(x))
     return float(m.group(1)) if m else None
 
-# === Added: Simple model monitoring function ===
+
 def model_monitor(mae, r2, threshold=100000):
     with open("metrics.log", "a") as f:
         f.write(f"{datetime.datetime.now()}, mae={mae:.4f}, r2={r2:.4f}\n")
@@ -27,8 +28,15 @@ def model_monitor(mae, r2, threshold=100000):
         # Optionally, you can uncomment this line to make the Prefect flow fail:
         # raise Exception(f"MAE {mae:.2f} exceeded threshold {threshold}!")
 
-def main(feature_path, target_arg, model_out, val_out,
-         test_size=0.2, random_seed=42):
+
+def main(
+    feature_path,
+    target_arg,
+    model_out,
+    val_out,
+    test_size=0.2,
+    random_seed=42,
+):
     # 0) Configure MLflow experiment
     mlflow.set_experiment("AUSHousingML")
 
@@ -44,7 +52,9 @@ def main(feature_path, target_arg, model_out, val_out,
             df["building_m2"] = df["building_size"].apply(extract_num)
 
         # 3) One-hot encode categorical columns
-        cat_cols = [c for c in ["property_type", "city", "listing_agency"] if c in df.columns]
+        cat_cols = [
+            c for c in ["property_type", "city", "listing_agency"] if c in df.columns
+        ]
         if cat_cols:
             df[cat_cols] = df[cat_cols].astype(str)
             df = pd.get_dummies(df, columns=cat_cols, dummy_na=True)
@@ -63,7 +73,9 @@ def main(feature_path, target_arg, model_out, val_out,
             if not price_cols:
                 raise KeyError("No column containing 'price' found.")
             if len(price_cols) > 1:
-                raise KeyError(f"Multiple price-like columns found: {price_cols}. Use --target-col.")
+                raise KeyError(
+                    f"Multiple price-like columns found: {price_cols}. Use --target-col."
+                )
             target_col = price_cols[0]
 
         # 5) Clean & rename target
@@ -134,7 +146,7 @@ def main(feature_path, target_arg, model_out, val_out,
         mlflow.log_metric("val_R2", r2)
         mlflow.log_metric("val_MAE", mae)
 
-        # === Added: record monitoring log and warning ===
+        # Record monitoring log and warning
         model_monitor(mae, r2, threshold=100000)
 
         # 10) Save model locally
@@ -185,6 +197,7 @@ def main(feature_path, target_arg, model_out, val_out,
         print(f"[train] Model saved to: {model_out}")
         print(f"[train] Validation set saved to: {val_out}")
         print(f"[train] R²={r2:.4f}, MAE={mae:.2f}, run_id={run.info.run_id}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
