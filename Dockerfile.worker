@@ -1,0 +1,5 @@
+FROM prefecthq/prefect:2-latest
+
+RUN pip install pandas scikit-learn matplotlib pyarrow xgboost mlflow boto3
+
+WORKDIR /app

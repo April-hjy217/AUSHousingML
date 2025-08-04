@@ -1,0 +1,61 @@
+services:
+  orion:
+    image: prefecthq/prefect:2-latest
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - orion_prefect_data:/root/.prefect
+    ports:
+      - "4200:4200"
+    environment:
+      - PREFECT_API_URL=http://orion:4200/api
+    command: >
+      bash -c "exec prefect server start --host 0.0.0.0 --port 4200"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: aushousingml/worker:latest
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - PREFECT_API_URL=http://orion:4200/api
+    depends_on:
+      - orion
+    command: >
+      bash -c "
+        sleep 30;
+        exec prefect worker start --pool default-pool --work-queue default-queue
+      "
+    restart: on-failure
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - worker
+    environment:
+      - MODEL_PATH=models/best_model.pkl
+      
+volumes:
+  orion_prefect_data: {}
+  minio_data:
