@@ -1,133 +1,112 @@
-🏡 AU Housing Price Prediction — End-to-End MLOps Project
-1. Overview
-This project demonstrates an end-to-end MLOps workflow for predicting residential house prices in Australia. The goal is to empower financial analysts, real estate professionals, and buyers with reliable, up-to-date property value estimates using a robust, automated, and monitorable pipeline.
+# 🏡 AU Housing Price Prediction — End-to-End MLOps Project
 
-Key Features:
+## Overview
 
-🧠 XGBoost-based regression model trained on real estate data
+This project demonstrates a MLOps pipeline for predicting Australian residential house prices. 
 
-🚀 Prefect 2.0 for workflow orchestration
+This project empowers analysts, real estate professionals, and buyers with **automated, and monitorable house price predictions** using up-to-date property data.
 
-📈 MLflow for experiment tracking and model registry
+---
 
-⚙️ Flask API for batch & real-time model serving
+## 🚀 Key Features
 
-🔍 Python-based model monitoring and threshold alerts
+- **XGBoost regression model** trained on real estate features  
+- **Prefect 2.0** for workflow orchestration (ETL → train → evaluate → monitor)
+- **MLflow** for experiment tracking & model registry
+- **Flask API** for real-time model serving
+- **MinIO** for S3-compatible artifact storage
+- **Python model monitoring** (log + threshold alerts)
+- **Docker Compose** for local, multi-service stack
+- **CI/CD-ready:** Makefile, pytest, flake8, GitHub Actions compatible
 
-📦 Docker (Compose) for local containerization
+---
 
-☁️ MinIO for S3-compatible artifact storage
+## 🏦 Business Context & Problem
 
-↻ CI/CD-ready (Makefile, GitHub Actions compatible)
+Australian property prices are dynamic and region-specific.  
+Accurate price predictions are vital for banks, buyers, and sellers to inform investment, lending, and pricing decisions.
 
+**ML Objective:**  
+Predict a property’s sale price from features (location, size, type, etc.) with accuracy, automated workflow, and monitoring.
 
-2. Problem Description
-Business Context
-Property prices in Australia are dynamic, region-specific, and sensitive to market changes. Accurate price prediction is critical for banks, buyers, and sellers to inform decisions, assess loan risks, and plan investments.
+---
 
-Problem Statement:
-Can we predict a property’s sale price from its features (location, size, property type, etc.) using recent and historical data?
+## 📊 Dataset
 
-ML Objective:
-Train a regression model to predict house prices with high accuracy, automate the entire workflow, and monitor model health for production-readiness.
+- **Source:**  
+  [Kaggle: Australian Housing Data (1,000+ properties)](https://www.kaggle.com/datasets/thedevastator/australian-housing-data-1000-properties-sampled)  
+  [Trading Economics API](https://tradingeconomics.com/api/?source=footer)
+- **Data Storage:**  
+  - Raw data: `data/raw/`
+  - Processed features: `data/processed/feature_table.parquet`, `val.parquet`
+  - Model artifacts: `models/`
+  - Metrics log: `metrics.log`
+  - MLflow runs: `mlruns/`
 
-3. Dataset Information
-Source: [https://www.kaggle.com/datasets/thedevastator/australian-housing-data-1000-properties-sampled; https://tradingeconomics.com/api/?source=footer]
+---
+## 🔬 Core Pipeline
 
-Format: Processed to feature_table.parquet (for modeling) and val.parquet (for validation)
+1. **Data Preprocessing** (`src/prepare_data.py`)
+    - Loads, cleans, and engineers features
+    - Output: `data/processed/feature_table.parquet`
+2. **Model Training** (`src/train.py`)
+    - XGBoost regression training
+    - MLflow logging, metrics logging, saves best model locally & to MinIO S3
+3. **Prediction** (`src/predict.py`)
+    - Loads latest model from `models/`
+    - Predicts on new/batch data; outputs results to CSV or console
+4. **Orchestration** (`orchestrate.py`)
+    - ETL → train → evaluate → monitor as a Prefect flow
+    - Run via Prefect or `make pipeline`
+5. **API Deployment** (`src/api.py`)
+    - `/predict` endpoint for JSON batch/real-time prediction
+6. **Model Monitoring** (`metrics.log`)
+    - Each run logs MAE & R²
+    - Alerts if MAE exceeds threshold (extensible for production alerts)
 
-Features: Includes location, size, bedroom/bathroom counts, property type, etc.
+---
 
-Storage:
+## 🎛️ Experiment Tracking & Storage
 
-Raw data: data/raw/
+- **MLflow UI:**  
+  Run `mlflow ui --backend-store-uri mlruns/`  
+  View at [http://localhost:5000](http://localhost:5000)
+- **MinIO (S3):**  
+  View uploaded model files at [http://localhost:9001](http://localhost:9001)  
+  Login: minio / minio123
 
-Processed data: data/processed/
+---
 
-Model artifacts: models/
+## 🐳 Deployment & CI/CD
 
-Metrics log: metrics.log
+- **Docker Compose:**  
+  Spin up full stack (API, Prefect, worker, MinIO) in one command
+- **Makefile:**  
+  Unified automation: `make build`, `make lint`, `make test`, `make up`, `make down`
+- **Testing:**  
+  Pytest suite for key modules
+- **Linting:**  
+  Flake8 for PEP8 code style compliance
+- **CI/CD:**  
+  GitHub Actions compatible
 
-MLflow experiments: mlruns/
+---
 
-4. Technical Structure
-Module/Folder	Description
-data/	Raw, processed, and validation datasets
-models/	Trained model files, feature lists
-src/	All core Python code (pipeline, training, API)
-api.py	Flask API for prediction
-train.py	Training pipeline with MLflow logging
-evaluate.py	Evaluation metrics & monitoring
-predict.py	CLI & batch prediction script
-test_train.py	Pytest unit/integration tests
-docker-compose.yaml	Full multi-service stack
-Makefile	Build, test, lint, run automation
-requirements.txt	Full dependencies, pinned versions
+## 🏁 How to Run (Locally)
 
-MLflow UI: Experiment and model registry at http://localhost:5000 (if enabled)
-MinIO: S3 artifact store UI at http://localhost:9001 (default login: minio/minio123)
+```bash
+# 1. Build and start everything (API, Prefect, MinIO)
+docker-compose up --build
 
-5. Database & Storage Setup
-MLflow Tracking DB: Local SQLite (mlruns/)
+# 2. Run the full ML pipeline
+make pipeline
 
-Artifacts: Saved in models/ and uploaded to MinIO (simulates S3)
+# 3. Test prediction API
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [485.0, 1351473.0, 139208727.0, 832.0, null, null, 3.0, 2.0, 2.0, 921.2, -0.56, 2.83, 56097.6, 29258.7, 16232.0, 212.0]}'
 
-Data: CSV/Parquet files in data/ (can scale to cloud storage)
-
-6. ML Pipeline Breakdown
-⚙️ Data Preprocessing (src/prepare_data.py)
-Loads and cleans raw housing data
-
-Feature engineering (numeric, categorical encoding)
-
-Outputs processed features to feature_table.parquet
-
-📈 Model Training with MLflow (src/train.py)
-Trains XGBoost regressor
-
-Evaluates MAE, R², logs metrics/artifacts to MLflow and metrics.log
-
-Saves best model (locally and to MinIO)
-
-MLflow UI for experiment comparison
-mlflow ui --backend-store-uri mlruns/
-# Visit http://127.0.0.1:5000
-
-🎺 Prediction (src/predict.py)
-Loads latest model from models/ or MLflow registry
-
-Predicts on new data or batch CSV
-
-Writes results to CSV or prints to console
-python src/predict.py --input data/feature_table.parquet
-
-↻ Orchestration with Prefect (orchestrate.py)
-End-to-end @flow: prepare → train → evaluate → monitor
-prefect deployment run 'AUSHousingML Pipeline/AUSHousingML Deployment'
-Or via Docker Compose.
-
-🌐 API Deployment (src/api.py)
-/predict endpoint for batch/single predictions via JSON
-
-Fully containerized (see Dockerfile.api)
-make api
-# Or run docker-compose up api
-# Visit http://localhost:8000/docs for Swagger UI
-
-🟢 Model Monitoring (metrics.log)
-Every run logs R² and MAE
-
-If MAE exceeds threshold, triggers warning (potential for alerts)
-
-7. Deployment & CI/CD
-Docker Compose: Local stack with Prefect, worker, API, and MinIO
-
-Makefile: All workflows (make build, make lint, make test, make up, make down, etc.)
-
-
-8. Monitoring and Reproducibility
-Metrics Logging: All evaluation metrics go to metrics.log for post-hoc analysis and production alerting
-
-MLflow: Tracks all params, runs, and artifacts for model reproducibility
-
-MinIO: S3 storage ensures deployment-ready artifact management
+# 4. View dashboards:
+# MLflow:  http://localhost:5000
+# MinIO:   http://localhost:9001
+# Prefect: http://localhost:4200
